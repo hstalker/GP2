@@ -6,6 +6,6 @@ README: README.md
 	pandoc -f markdown -t plain --wrap=none $< -o $@
 
 # Install into the doc directory
-doc_DATA = COPYING README
+doc_DATA = LICENSE README
 
 CLEANFILES = README
