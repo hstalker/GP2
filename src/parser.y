@@ -83,7 +83,7 @@ bool syntax_error = false;
 }
 
 /* Single character tokens do not need to be explicitly declared. */
-%token MAIN IF TRY THEN ELSE SKIP FAIL BREAK
+%token MAIN IF TRY _ASSERT THEN ELSE SKIP FAIL BREAK
 %token WHERE EDGETEST   
 %token INDEG OUTDEG _LENGTH					
 %token INT CHARACTER STRING ATOM LIST 	                               
@@ -282,6 +282,9 @@ Command: Block 				/* default $$ = $1 */
                                                $2, newASTSkip(@$), $4); }
        | TRY Block THEN Block ELSE Block { $$ = newASTCondBranch(TRY_STATEMENT, @$,
                                                 $2, $4, $6); }
+       | _ASSERT Block 			{ $$ = newASTAssert(@$, $2); }
+       | '<' Block '>' Block '<' Block '>' { $$ = newASTAssertPrePost(@$, @2, $2, 
+                                                @4, $4, @6, $6); } 
 
 
 Block: '(' ComSeq ')' 	                { $$ = newASTCommandSequence(@$, $2); }

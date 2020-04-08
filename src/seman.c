@@ -323,6 +323,10 @@ void commandScan(GPCommand *command, string scope, List *declarations, bool in_l
            commandScan(command->cond_branch.else_command, scope, declarations, in_loop);
            break;
 
+      case ASSERT_STATEMENT:
+           commandScan(command->assert_stmt.stmt, scope, declarations, in_loop);
+           break;
+
       case ALAP_STATEMENT:
            commandScan(command->loop_stmt.loop_body, scope, declarations, true);
            break;

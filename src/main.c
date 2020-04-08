@@ -120,7 +120,7 @@ static bool validateHostGraph(string host_file)
    return (yyparse() == 0);
 }
 
-bool debug_flags, fast_shutdown, minimal_gc, reflect_roots, no_node_list, quick_compile = false;
+bool debug_flags, assertion_mode, fast_shutdown, minimal_gc, reflect_roots, no_node_list, quick_compile = false;
 
 void printMakeFile(string output_dir)
 {
@@ -185,12 +185,13 @@ void printBuildScript(string output_dir, string lib_dir)
 int main(int argc, char **argv)
 {
    string const usage = "Usage:\n"
-                        "gp2 [-d] [-f] [-g] [-m] [-n] [-q] [-l <libdir>] [-o <outdir>] <program_file>\n"
+                        "gp2 [-d] [-a] [-f] [-g] [-m] [-n] [-q] [-l <libdir>] [-o <outdir>] <program_file>\n"
                         "gp2 -p <program_file>\n"
                         "gp2 -r <rule_file>\n"
                         "gp2 -h <host_file>\n\n"
                         "Flags:\n"
                         "-d - Compile program with debugging flags.\n"
+                        "-a - Compile program in assertion mode.\n"
                         "-f - Compile in fast shutdown mode.\n"
                         "-g - Compile with minimal garbage collection (requires fast shutdown).\n"
                         "-m - Compile with root reflecting matches.\n"
@@ -256,6 +257,10 @@ int main(int argc, char **argv)
           {
              case 'd':
                   debug_flags = true;
+                  break;
+
+             case 'a':
+                  assertion_mode = true;
                   break;
 
              case 'f':

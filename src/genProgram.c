@@ -34,7 +34,7 @@ int restore_point_count = 0;
 /* The contexts of a GP2 program determine the code that is generated. In
  * particular, the code generated when a rule match fails is determined by
  * its context. The context also has some impact on graph copying. */
-typedef enum {MAIN_BODY, IF_BODY, TRY_BODY, LOOP_BODY} ContextType;
+typedef enum {MAIN_BODY, IF_BODY, TRY_BODY, ASSERT_BODY, LOOP_BODY} ContextType;
 
 /* Structure containing data to pass between code generation functions.
  * context - The context of the current command.
@@ -63,8 +63,10 @@ static void generateProgramCode(GPCommand *command, CommandData data);
 static void generateRuleCall(string rule_name, bool empty_lhs, bool predicate,
                              bool last_rule, CommandData data);
 static void generateBranchStatement(GPCommand *command, CommandData data);
+static void generateAssertStatement(GPCommand *command, CommandData data);
 static void generateLoopStatement(GPCommand *command, CommandData data);
 static void generateFailureCode(string rule_name, CommandData data);
+static void generateViolationCode(GPCommand *command, CommandData data);
 static bool nullCommand(GPCommand *command);
 static bool singleRule(GPCommand *command);
 
@@ -312,6 +314,10 @@ static void generateProgramCode(GPCommand *command, CommandData data)
            generateBranchStatement(command, data);
            break;
 
+      case ASSERT_STATEMENT:
+           generateAssertStatement(command, data);
+           break;
+
       case ALAP_STATEMENT:
            generateLoopStatement(command, data);
            break;
@@ -435,6 +441,66 @@ static void generateRuleCall(string rule_name, bool empty_lhs, bool predicate,
    }
 }
 
+static void generateAssertStatement(GPCommand *command, CommandData data)
+{
+   /* Assertions are not generated if compiling GP2 program in assertion mode */
+   if(!assertion_mode) return;
+
+   /* Create new CommandData for the assertion statement. */
+   CommandData assertion_data = data;
+   assertion_data.context = ASSERT_BODY;
+   assertion_data.indent = data.indent + 3;
+
+   assertion_data.record_changes = true;
+   assertion_data.restore_point = restore_point_count++;
+
+   PTFI("/* Assert Statement */\n", data.indent);
+   if(assertion_data.restore_point >= 0)
+      PTFI("int restore_point%d = graph_change_stack == NULL ? 0 : topOfGraphChangeStack();\n", 
+		      data.indent, assertion_data.restore_point);
+
+   PTFI("do\n", data.indent);
+   PTFI("{\n", data.indent);
+   generateProgramCode(command->assert_stmt.stmt, assertion_data);
+   PTFI("} while(false);\n\n", data.indent);
+
+   /* Update the indentation of the passed command data for the assertion failure branch */
+   CommandData new_data = data;
+   new_data.indent = data.indent + 3;
+   PTFI("/* Assertion Failure Branch */\n", data.indent);
+   PTFI("if(!success)\n", data.indent);
+   PTFI("{\n", data.indent);
+
+   PTFI("fprintf(output_file, \"Assertion triggered, location: lines: %d-%d, columns: %d-%d\\n\");\n",
+		   new_data.indent, 
+		   command->location.first_line, 
+		   command->location.last_line,
+		   command->location.first_column,
+		   command->location.last_column);
+
+   /* Display the specific graph upon which assertion failure occurred
+   * This may be different to the graph prior to assertion execution */
+   PTFI("fprintf(output_file, \"Assertion failure graph:\\n\");\n",
+	   new_data.indent);
+   if(fast_shutdown) PTFI("printGraphFast(host, output_file);\n", new_data.indent);
+   else PTFI("printGraph(host, output_file);\n", new_data.indent);
+   if(assertion_data.restore_point >= 0)
+      PTFI("undoChanges(restore_point%d);\n", new_data.indent, assertion_data.restore_point);
+
+   generateViolationCode(command, new_data);
+   PTFI("}\n", data.indent);
+
+   if(assertion_data.restore_point >= 0)
+      PTFI("undoChanges(restore_point%d);\n", data.indent, assertion_data.restore_point);
+
+   PTFI("success = true;\n", data.indent); /* Reset success flag. */
+
+   if(data.context == ASSERT_BODY || data.context == IF_BODY || data.context == TRY_BODY)
+      PTFI("break;\n", data.indent);
+
+   return;
+}
+
 /* generateBranchStatement passes on the second argument 'data' to the calls to
  * generate code for the then and else branches.
  * The flags from the GPCommand structure are used only to generate code for
@@ -443,7 +509,14 @@ static void generateBranchStatement(GPCommand *command, CommandData data)
 {
    /* Create new CommandData for the branch condition. */
    CommandData condition_data = data;
-   condition_data.context = command->type == IF_STATEMENT ? IF_BODY : TRY_BODY;
+   if(command->type == IF_STATEMENT) 
+   {
+      condition_data.context = IF_BODY;
+   } 
+   else 
+   {
+      condition_data.context = TRY_BODY;
+   }
    condition_data.indent = data.indent + 3;
 
    /* No restore point set if:
@@ -589,10 +662,33 @@ static void generateFailureCode(string rule_name, CommandData data)
    /* In other contexts, set the runtime success flag to false. */
    else PTFI("success = false;\n", data.indent);
 
-   if(data.context == IF_BODY || data.context == TRY_BODY) PTFI("break;\n", data.indent);
+   if(data.context = ASSERT_BODY || data.context == IF_BODY || data.context == TRY_BODY) 
+      PTFI("break;\n", data.indent);
 
    if(data.context == LOOP_BODY && data.restore_point >= 0)
       PTFI("undoChanges(restore_point%d);\n", data.indent, data.restore_point);
+}
+
+/* Generates code to handle violation states. There are two
+ * Violation states currently only occurs if an assertion fails and cannot
+ * otherwise be directly invoked.
+ * The position of the violation occurrence in the gp2 source file is passed as the 
+ * first argument. */
+static void generateViolationCode(GPCommand* command, CommandData data)
+{
+   /* Emit code to report the violation, garbage collect and return 0. */
+   PTFI("fprintf(output_file, \"Violation state has occurred\\n\");\n", data.indent);
+   PTFI("fprintf(output_file, \"Violation graph:\\n\");\n", data.indent);
+   if(fast_shutdown) PTFI("printGraphFast(host, output_file);\n", data.indent);
+   else
+   {
+      PTFI("printGraph(host, output_file);\n", data.indent);
+      PTFI("garbageCollect();\n", data.indent);
+   }
+   PTFI("printf(\"Output information saved to file gp2.output\\n\");\n", data.indent);
+   PTFI("closeLogFile();\n", data.indent);
+   PTFI("fclose(output_file);\n", data.indent);
+   PTFI("return 0;\n", data.indent);
 }
 
 /* The function singleRule returns true if the passed command amounts to a single
@@ -629,6 +725,9 @@ static bool singleRule(GPCommand *command)
       case IF_STATEMENT:
       case TRY_STATEMENT:
       case ALAP_STATEMENT:
+           return false;
+
+      case ASSERT_STATEMENT:
            return false;
 
       case PROGRAM_OR:
@@ -692,6 +791,10 @@ static bool nullCommand(GPCommand *command)
            if(!nullCommand(command->cond_branch.condition)) return false;
            if(!nullCommand(command->cond_branch.then_command)) return false;
            if(!nullCommand(command->cond_branch.else_command)) return false;
+           else return true;
+
+      case ASSERT_STATEMENT:
+           if(!nullCommand(command->assert_stmt.stmt)) return false;
            else return true;
 
       case ALAP_STATEMENT:

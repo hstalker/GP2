@@ -114,6 +114,7 @@ extern int parse_target;
 Main		    return MAIN;
 if	            return IF;
 try		    return TRY;
+assert		    return _ASSERT;
 then 	  	    return THEN;
 else		    return ELSE;
 skip                return SKIP;

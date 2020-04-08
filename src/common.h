@@ -55,6 +55,7 @@ extern bool fast_shutdown;
 extern bool minimal_gc;
 extern bool reflect_roots;
 extern bool no_node_list;
+extern bool assertion_mode;
 
 /* Bison uses a global variable yylloc of type YYLTYPE to keep track of the 
  * locations of tokens and nonterminals. The scanner will set these values upon

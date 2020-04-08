@@ -253,6 +253,24 @@ GPCommand *newASTOrStmt(YYLTYPE location, GPCommand *left_command,
    return command;
 }
 
+GPCommand *newASTAssert(YYLTYPE location, GPCommand *stmt)
+{
+   GPCommand *command = makeGPCommand(location, ASSERT_STATEMENT);
+   command->assert_stmt.stmt = stmt;
+   return command;
+}
+
+GPCommand *newASTAssertPrePost(YYLTYPE location, 
+		YYLTYPE pre_location, GPCommand *pre, 
+		YYLTYPE body_location, GPCommand *body, 
+		YYLTYPE post_location, GPCommand *post)
+{
+   return newASTCommandSequence(location, 
+	addASTCommand(post_location, newASTAssert(post_location, post), 
+	addASTCommand(body_location, body, 
+	addASTCommand(pre_location, newASTAssert(pre_location, pre), NULL))));
+}
+
 GPCommand *newASTBreak(YYLTYPE location)
 {
    GPCommand *command = makeGPCommand(location, BREAK_STATEMENT); 
@@ -770,6 +788,11 @@ void freeASTCommand(GPCommand *command)
              freeASTCommand(command->cond_branch.then_command);
            if(command->cond_branch.else_command) 
              freeASTCommand(command->cond_branch.else_command);
+           break;
+
+      case ASSERT_STATEMENT:
+           if(command->assert_stmt.stmt) 
+             freeASTCommand(command->assert_stmt.stmt);
            break;
 
       case ALAP_STATEMENT:

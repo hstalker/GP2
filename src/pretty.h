@@ -159,6 +159,20 @@
   }                                                                       \
   while(0)     
 
+#define printAssertNode(NODE_LABEL)                                       \
+  do                                                                      \
+  {                                                                       \
+     print_to_dot_file("node%d[label=\"%d\\n%d.%d-%d.%d\\n"               \
+                       #NODE_LABEL "\"]\n",                               \
+                       command->id, command->id,                          \
+                       LOCATION_ARGS(command->location));                 \
+                                                                          \
+     print_to_dot_file("node%d->node%d[label=\"stmt\"]\n",                \
+                       command->id, next_id);                             \
+     prettyPrint(command->assert_stmt.stmt, Command);                     \
+  }                                                                       \
+  while(0)     
+
 #define printTypeCheckNode(NODE_LABEL_1, NODE_LABEL_2)                               \
   do                                                                                 \
   {                                                                                  \

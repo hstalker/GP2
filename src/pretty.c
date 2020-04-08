@@ -404,6 +404,11 @@ void printASTCommand(GPCommand *const command, FILE *dot_file)
            printConditionalNode(Try Statement);
            break;
 
+      case ASSERT_STATEMENT:
+           command->id = next_id++;
+           printAssertNode(Assert Statement);
+           break;
+
       case ALAP_STATEMENT:
            command->id = next_id++;
 

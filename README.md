@@ -146,6 +146,7 @@ where ``<program>`` is the path to your GP 2 program, and ``<input graph>`` the 
 These are the flags:
 
 - **-d** - Compile program with debugging flags.
+- **-a** - Compile program in assertion mode.
 - **-f** - Compile in fast shutdown mode.
 - **-g** - Compile with minimal garbage collection (requires fast shutdown).
 - **-m** - Compile with root reflecting matches.
@@ -165,6 +166,7 @@ where ``<program>`` is the path to your GP 2 program, and ``<input graph>`` the 
 These are the flags:
 
 - **-d** - Compile program with debugging flags.
+- **-a** - Compile program in assertion mode.
 - **-f** - Compile in fast shutdown mode.
 - **-g** - Compile with minimal garbage collection (requires fast shutdown).
 - **-m** - Compile with root reflecting matches.

@@ -124,7 +124,8 @@ GPDeclaration *newASTRuleDecl (YYLTYPE location, struct GPRule *rule);
 /* Definition of AST nodes for GP commands. */
 typedef enum {COMMAND_SEQUENCE = 0, RULE_CALL, RULE_SET_CALL, PROCEDURE_CALL, 
               IF_STATEMENT, TRY_STATEMENT, ALAP_STATEMENT, PROGRAM_OR, 
-              SKIP_STATEMENT, FAIL_STATEMENT, BREAK_STATEMENT} CommandType;
+              SKIP_STATEMENT, FAIL_STATEMENT, BREAK_STATEMENT, 
+              ASSERT_STATEMENT} CommandType;
 
 typedef struct GPCommand {
   int id;
@@ -151,6 +152,9 @@ typedef struct GPCommand {
       bool record_changes;
     } cond_branch; 			/* IF_STATEMENT, TRY_STATEMENT */
     struct {
+      struct GPCommand *stmt;
+    } assert_stmt; 			/* ASSERT_STATEMENT */
+    struct {
        struct GPCommand *loop_body;
        bool record_changes;
        bool inner_loop;
@@ -175,6 +179,11 @@ GPCommand *newASTCondBranch(CommandType type, YYLTYPE location,
 	                    GPCommand *else_stmt);
 GPCommand *newASTAlap(YYLTYPE location, GPCommand *loop_body);
 GPCommand *newASTOrStmt(YYLTYPE location, GPCommand *left_stmt, GPCommand *right_stmt);
+GPCommand *newASTAssert(YYLTYPE location, GPCommand *stmt);
+GPCommand *newASTAssertPrePost(YYLTYPE location, 
+		YYLTYPE pre_location, GPCommand *pre, 
+		YYLTYPE body_location, GPCommand *body, 
+		YYLTYPE post_location, GPCommand *post);
 GPCommand *newASTBreak(YYLTYPE location);
 GPCommand *newASTSkip(YYLTYPE location);
 GPCommand *newASTFail(YYLTYPE location);
